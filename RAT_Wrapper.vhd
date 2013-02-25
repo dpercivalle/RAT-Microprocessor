@@ -17,6 +17,8 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 entity RAT_wrapper is
     Port ( leds     : out   STD_LOGIC_VECTOR (7 downto 0);
+           anodes   : out   STD_LOGIC_VECTOR (3 downto 0);
+           cathodes : out   STD_LOGIC_VECTOR (7 downto 0);
            switches : in    STD_LOGIC_VECTOR (7 downto 0);
            rst      : in    STD_LOGIC;
            clk      : in    STD_LOGIC);
@@ -43,11 +45,22 @@ end component;
 
 component outputs is
     Port ( leds         : out   STD_LOGIC_VECTOR (7 downto 0);
+           sseg         : out   STD_LOGIC_VECTOR (7 downto 0);
            port_id      : in    STD_LOGIC_VECTOR (7 downto 0);
            output_port  : in    STD_LOGIC_VECTOR (7 downto 0);
            io_oe        : in    STD_LOGIC;
            clk          : in    STD_LOGIC);
 end component;
+
+component sseg_dec is
+    Port (      ALU_VAL : in std_logic_vector(7 downto 0); 
+					    SIGN : in std_logic;
+						VALID : in std_logic;
+                    CLK : in std_logic;
+                DISP_EN : out std_logic_vector(3 downto 0);
+               SEGMENTS : out std_logic_vector(7 downto 0));
+end component;
+
 -------------------------------------------------------------------------------
 
 -- Signals for connecting RAT_CPU to RAT_wrapper -------------------------------
@@ -56,6 +69,7 @@ signal input_port  : std_logic_vector (7 downto 0);
 signal output_port : std_logic_vector (7 downto 0);
 signal port_id     : std_logic_vector (7 downto 0);
 signal io_oe       : std_logic;
+signal display     : std_logic_vector (7 downto 0);
 
 -------------------------------------------------------------------------------
 
@@ -85,10 +99,21 @@ INPUT: inputs
 -- Instantiate Outputs --------------------------------------------------------
 OUTPUT: outputs
     port map(leds        => leds,
+             sseg        => display,
              port_id     => port_id,
              output_port => output_port,
              io_oe       => io_oe,
              clk         => clk);
 
+-------------------------------------------------------------------------------
+
+-- SSEG Decorder --------------------------------------------------------------
+DECODER: sseg_dec 
+      port map (ALU_VAL => display,
+					    SIGN => '0',
+						VALID => '1',
+                    CLK => clk,
+                DISP_EN => anodes,
+               SEGMENTS => cathodes);
 -------------------------------------------------------------------------------
 end Behavioral;

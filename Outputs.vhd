@@ -22,6 +22,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 entity outputs is
     Port ( leds     : out   STD_LOGIC_VECTOR (7 downto 0); --output to the board leds
+           sseg     : out   STD_LOGIC_VECTOR (7 downto 0);
            port_id  : in    STD_LOGIC_VECTOR (7 downto 0); --id of the currently active port
        output_port  : in    STD_LOGIC_VECTOR (7 downto 0); -- current value of the output
            io_oe    : in    STD_LOGIC; --indication that the output can be transmitted
@@ -34,6 +35,7 @@ architecture Behavioral of outputs is
 -- In future labs you can add more port IDs
 -- (and remove this comment)
 CONSTANT LEDS_ID : STD_LOGIC_VECTOR (7 downto 0) := X"40";
+CONSTANT SSEG_ID : STD_LOGIC_VECTOR (7 downto 0) := X"81";
 -------------------------------------------------------------------------------
 
 begin
@@ -46,6 +48,7 @@ OUTPUTS: process(clk) begin
     if (io_oe = '1') then
       case (port_id) is
         when LEDS_ID => LEDS <= output_port;
+        when SSEG_ID => SSEG <= output_port;
         when others  => LEDS <= X"00";
 
       end case;

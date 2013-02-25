@@ -140,6 +140,28 @@ component prog_rom
                   CLK : in std_logic);
 end component;
 
+--Stack Pointer
+component StackPointer
+    Port ( INC_DEC : in  STD_LOGIC_VECTOR (1 downto 0);
+              D_IN : in  STD_LOGIC_VECTOR (7 downto 0);
+                WE : in  STD_LOGIC;
+               RST : in  STD_LOGIC;
+               CLK : in  STD_LOGIC;
+          STK_PNTR : out  STD_LOGIC_VECTOR (7 downto 0));
+end component;
+
+--Scratch Pad
+component ScratchPadMemory
+    Port(IMMED_ADR : in STD_LOGIC_VECTOR (7 downto 0);
+            SP_ADR : in STD_LOGIC_VECTOR (7 downto 0);
+            RS_ADR : in STD_LOGIC_VECTOR (7 downto 0);
+       SCR_ADR_SEL : in STD_LOGIC_VECTOR (1 downto 0);
+             SP_WE : in  STD_LOGIC;
+             SP_OE : in  STD_LOGIC;
+               CLK : in  STD_LOGIC;
+           SP_DATA : inout  STD_LOGIC_VECTOR (9 downto 0));
+end component;
+
 --DEFINE INTERNAL SIGNALS TO COMMUNICATE BETWEEN THE COMPONENTS
 
    signal in_PC_LD, in_PC_OE, in_SP_LD, in_RESET, in_RF_WR,
@@ -157,7 +179,7 @@ end component;
 
    signal in_ALU_SEL : STD_LOGIC_VECTOR (3 downto 0);
 
-   signal REG_DY_OUT, ALU_SUM_OUT : STD_LOGIC_VECTOR (7 downto 0);
+   signal REG_DY_OUT, ALU_SUM_OUT, pointer : STD_LOGIC_VECTOR (7 downto 0);
 
    signal instruction : STD_LOGIC_VECTOR (17 downto 0);
 
@@ -224,7 +246,7 @@ CONTROLUNIT: control_unit port map (
                         PC_LD => in_PC_LD,
                         PC_MUX_SEL => in_PC_MUX_SEL,
                         PC_OE => in_PC_OE,
-                        --OUTPUTS TO STACK POINTER (not used Lab 7)
+                        --OUTPUTS TO STACK POINTER
                         SP_LD => in_SP_LD,
                         SP_MUX_SEL => in_SP_MUX_SEL,
                         --OUPUT RESET TO PROGRAM COUNTER AND STACK POINTER
@@ -236,7 +258,7 @@ CONTROLUNIT: control_unit port map (
                         --OUTPUTS TO ALU
                         ALU_MUX_SEL => in_ALU_MUX_SEL,
                         ALU_SEL => in_ALU_SEL,
-                        --OUTPUTS TO SCRATCHPAD (not used Lab 7)
+                        --OUTPUTS TO SCRATCHPAD
                         SCR_WR => in_SCR_WR,
                         SCR_OE => in_SCR_OE,
                         SCR_ADDR_SEL => in_SCR_ADR_SEL,
@@ -256,6 +278,29 @@ CONTROLUNIT: control_unit port map (
                         --OUTPUTS TO OUTPUTS MODULE
                         IO_OE => IO_OE);
 
+STACK: StackPointer port map (
+      --STACK POINTER INPUTS
+      INC_DEC => in_SP_MUX_SEL,           --FROM CONTROL UNIT
+      D_IN => tri_state_bus (7 downto 0), --INTERNAL BUS
+      WE => in_SP_LD,                     --FROM CONTROL UNIT
+      RST => RST,                         --FROM BOARD
+      CLK => CLK,                         --FROM BOARD
+      --STACK POINTER OUTPUTS
+      STK_PNTR => pointer                 --INTERNAL POINTER SIGNAL
+      );
+
+Scratch: ScratchPadMemory port map (
+            --SCRATCH PAD INPUTS
+            IMMED_ADR => instruction (7 downto 0), --INSTRUCTION
+            SP_ADR => pointer,                     --POINTER
+            RS_ADR => REG_DY_OUT,                  --FROM REGISTER
+            SCR_ADR_SEL => in_SCR_ADR_SEL,         --FROM CONTROL UNIT
+            SP_WE => in_SCR_WR,                    --FROM CONTROL UNIT
+            SP_OE => in_SCR_OE,                    --FROM CONTROL UNIT
+            CLK => CLK,                            --FROM BOARD
+            --SCRATCH PAD OUTPUTS
+            SP_DATA => tri_state_bus               --TO TRI-STATE-BUS
+            );
 
 ALUnit: ALU port map (
             --ALU INPUTS

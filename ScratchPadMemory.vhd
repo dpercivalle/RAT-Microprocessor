@@ -16,7 +16,7 @@ entity ScratchPadMemory is
     Port(IMMED_ADR : in STD_LOGIC_VECTOR (7 downto 0);
             SP_ADR : in STD_LOGIC_VECTOR (7 downto 0);
             RS_ADR : in STD_LOGIC_VECTOR (7 downto 0);
-       SCR_ADR_SEL : in STD_LOGIC_VECOTR (1 downto 0);
+       SCR_ADR_SEL : in STD_LOGIC_VECTOR (1 downto 0);
              SP_WE : in  STD_LOGIC;
              SP_OE : in  STD_LOGIC;
                CLK : in  STD_LOGIC;
@@ -31,7 +31,7 @@ architecture Behavioral of ScratchPadMemory is
 begin
 
    --Scratch Pad Address Multiplexer
-   process (IMMED_ADR, SP_ADR, SP_DADR, RS_ADR, SCR_ADR_SEL) begin
+   process (IMMED_ADR, SP_ADR, RS_ADR, SCR_ADR_SEL) begin
       case (SCR_ADR_SEL) is
          when "00" =>
             SP_ADRS <= IMMED_ADR;
@@ -47,7 +47,7 @@ begin
    end process;
 
    --Writing clocked process
-   process (clk) begin
+   process (clk, SP_DATA, SP_ADRS) begin
       if (rising_edge(clk)) then
          if (SP_WE = '1') then
             mem(conv_integer(SP_ADRS)) <= SP_DATA;

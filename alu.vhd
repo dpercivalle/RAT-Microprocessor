@@ -31,7 +31,7 @@ architecture ALU_a of ALU is
 
    --MUX DETERMINE B OPERAND
 
-   process (MUX_SEL) begin
+   process (MUX_SEL, REG_in, IMMED) begin
       if (MUX_SEL = '0') then
          B <= REG_in;
       elsif (MUX_SEL = '1') then
@@ -78,6 +78,7 @@ architecture ALU_a of ALU is
                      when "0101" =>
                         answer:= ('0'& A) AND ('0'& B);
                         C_sig <= C_in;
+
                --ASR Operation
                      when "0110" =>
                         answer := ('0'& A(7)) & (A(7 downto 1));
@@ -100,7 +101,7 @@ architecture ALU_a of ALU is
 
                -- OR Operation
                      when "1010" =>
-                        answer := '0' & (A OR B);
+                        answer := (('0' & A) OR ('0' & B));
                         C_sig <= C_in;
 
                -- ROL Operation

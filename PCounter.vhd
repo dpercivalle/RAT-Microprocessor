@@ -29,26 +29,24 @@ architecture Behavioral of program_counter is
 signal count : STD_LOGIC_VECTOR (9 downto 0);
 
 begin
-   process (CLK, RST) begin
+   process (CLK, RST, FROM_IMMED, FROM_STACK) begin
       if (RST = '1') then
          count <= (others => '0');
       elsif (rising_edge(CLK)) then
-            --NORMAL PC OPERATION, INCREMENT COUNT BY 1
-            if (SEL = "00") then
-               if (LOAD = '1') then
+            if (LOAD = '1') then
+               --NORMAL PC OPERATION, INCREMENT COUNT BY 1
+               if (SEL = "00") then
                   count <= count + 1;
+               --OUTPUT ADDRESS FROM INSTRUCTION
+               elsif (SEL = "01") then
+                  count <= FROM_IMMED;
+               --OUTPUT ADDRESS FROM PC_TRI
+               elsif (SEL = "10") then
+                  count <= FROM_STACK;
+               --INTERRUPT
+               else
+                  count <= "1111111111";
                end if;
-            --OUTPUT ADDRESS FROM INSTRUCTION
-            elsif (SEL = "01") then
-               count <= FROM_IMMED;
-
-            --OUTPUT ADDRESS FROM PC_TRI
-            elsif (SEL = "10") then
-               count <= FROM_STACK;
-
-            --INTERRUPT
-            else
-               count <= "1111111111";
             end if;
       end if;
    end process;
