@@ -35,7 +35,8 @@ architecture Behavioral of outputs is
 -- In future labs you can add more port IDs
 -- (and remove this comment)
 CONSTANT LEDS_ID : STD_LOGIC_VECTOR (7 downto 0) := X"40";
-CONSTANT SSEG_ID : STD_LOGIC_VECTOR (7 downto 0) := X"81";
+CONSTANT SSEG_ID : STD_LOGIC_VECTOR (7 downto 0) := X"80";
+
 -------------------------------------------------------------------------------
 
 begin

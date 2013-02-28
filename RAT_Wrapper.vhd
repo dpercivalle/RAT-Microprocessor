@@ -16,12 +16,13 @@ use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 entity RAT_wrapper is
-    Port ( leds     : out   STD_LOGIC_VECTOR (7 downto 0);
-           anodes   : out   STD_LOGIC_VECTOR (3 downto 0);
-           cathodes : out   STD_LOGIC_VECTOR (7 downto 0);
-           switches : in    STD_LOGIC_VECTOR (7 downto 0);
-           rst      : in    STD_LOGIC;
-           clk      : in    STD_LOGIC);
+    Port ( leds      : out   STD_LOGIC_VECTOR (7 downto 0);
+           anodes    : out   STD_LOGIC_VECTOR (3 downto 0);
+           cathodes  : out   STD_LOGIC_VECTOR (7 downto 0);
+           switches  : in    STD_LOGIC_VECTOR (7 downto 0);
+           interrupt : in    STD_LOGIC;
+           rst       : in    STD_LOGIC;
+           clk       : in    STD_LOGIC);
 end RAT_wrapper;
 
 architecture Behavioral of RAT_wrapper is
@@ -52,14 +53,25 @@ component outputs is
            clk          : in    STD_LOGIC);
 end component;
 
+component Debouncer is
+ Port( RST : in std_logic;
+       CLK : in std_logic;
+       INT_IN : in std_logic;
+       INT_DEBOUNCED : out std_logic);
+end component;
+
+
 component sseg_dec is
-    Port (      ALU_VAL : in std_logic_vector(7 downto 0); 
+
+    Port (      ALU_VAL : in std_logic_vector(7 downto 0);
 					    SIGN : in std_logic;
 						VALID : in std_logic;
                     CLK : in std_logic;
                 DISP_EN : out std_logic_vector(3 downto 0);
                SEGMENTS : out std_logic_vector(7 downto 0));
 end component;
+
+
 
 -------------------------------------------------------------------------------
 
@@ -69,6 +81,7 @@ signal input_port  : std_logic_vector (7 downto 0);
 signal output_port : std_logic_vector (7 downto 0);
 signal port_id     : std_logic_vector (7 downto 0);
 signal io_oe       : std_logic;
+signal in_int      : std_logic;
 signal display     : std_logic_vector (7 downto 0);
 
 -------------------------------------------------------------------------------
@@ -83,7 +96,7 @@ CPU: RAT_CPU
            port_id  => port_id,
            rst      => rst,
            io_oe    => io_oe,
-           int_in   => '0', --FIXME when interrupts are added
+           int_in   => in_int,
            clk      => clk);
 
 
@@ -92,8 +105,17 @@ CPU: RAT_CPU
 INPUT: inputs
     port map(input_port => input_port,
              switches   => switches,
+
              port_id    => port_id);
 
+
+-- Debouncer Interrupt --------------------------------------------------------
+DEBOUNCE: Debouncer
+   port map (
+        RST => rst,
+        CLK => clk,
+        INT_IN => interrupt,
+        INT_DEBOUNCED => in_int);
 
 
 -- Instantiate Outputs --------------------------------------------------------
@@ -108,12 +130,16 @@ OUTPUT: outputs
 -------------------------------------------------------------------------------
 
 -- SSEG Decorder --------------------------------------------------------------
-DECODER: sseg_dec 
+
+DECODER: sseg_dec
+
       port map (ALU_VAL => display,
 					    SIGN => '0',
 						VALID => '1',
                     CLK => clk,
                 DISP_EN => anodes,
                SEGMENTS => cathodes);
+
 -------------------------------------------------------------------------------
+
 end Behavioral;

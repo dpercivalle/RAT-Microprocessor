@@ -30,6 +30,8 @@ component FlagReg
            LD       : in  STD_LOGIC; --load the out_flag with the in_flag value
            SET      : in  STD_LOGIC; --set the flag to '1'
            CLR      : in  STD_LOGIC; --clear the flag to '0'
+           RESTORE  : in  STD_LOGIC; --interrupt complete; restore flag from shadow
+           SAVE     : in  STD_LOGIC; --interrupt received; store flag into shadow
            CLK      : in  STD_LOGIC; --system clock
            OUT_FLAG : out  STD_LOGIC); --flag output
 end component;
@@ -82,6 +84,7 @@ component control_unit
            C             : in   STD_LOGIC;
            Z             : in   STD_LOGIC;
            INT           : in   STD_LOGIC;
+           INT_IN        : in   STD_LOGIC;
            RST           : in   STD_LOGIC;
            --From the instruction register:
            OPCODE_HI_5   : in   STD_LOGIC_VECTOR (4 downto 0);
@@ -114,13 +117,15 @@ component control_unit
            SCR_ADDR_SEL  : out  STD_LOGIC_VECTOR (1 downto 0); --sp mux sel
 
            --C Flag
-           C_FLAG_SEL    : out  STD_LOGIC_VECTOR (1 downto 0);
+           C_FLAG_SAVE   : out  STD_LOGIC;
+           C_FLAG_REST   : out  STD_LOGIC;
            C_FLAG_LD     : out  STD_LOGIC;
            C_FLAG_SET    : out  STD_LOGIC;
            C_FLAG_CLR    : out  STD_LOGIC;
 
            --Z Flag
-           Z_FLAG_SEL    : out  STD_LOGIC_VECTOR (1 downto 0);
+           Z_FLAG_SAVE   : out  STD_LOGIC;
+           Z_FLAG_REST   : out  STD_LOGIC;
            Z_FLAG_LD     : out  STD_LOGIC; --Load Z
            Z_FLAG_SET    : out  STD_LOGIC; --Set Z
            Z_FLAG_CLR    : out  STD_LOGIC; --Clear Z
@@ -162,19 +167,23 @@ component ScratchPadMemory
            SP_DATA : inout  STD_LOGIC_VECTOR (9 downto 0));
 end component;
 
+
 --DEFINE INTERNAL SIGNALS TO COMMUNICATE BETWEEN THE COMPONENTS
 
    signal in_PC_LD, in_PC_OE, in_SP_LD, in_RESET, in_RF_WR,
           in_RF_OE, in_ALU_MUX_SEL, in_SCR_WR, in_SCR_OE,
           in_C_FLAG_LD, in_C_FLAG_SET, in_C_FLAG_CLR,
+          in_C_FLAG_SAVE, in_C_FLAG_RESTORE,
           in_Z_FLAG_LD, in_Z_FLAG_SET, in_Z_FLAG_CLR,
+          in_Z_FLAG_SAVE, in_Z_FLAG_RESTORE,
           in_I_FLAG_SET, in_I_FLAG_CLR,
           in_C_FLAG, in_Z_FLAG, in_INT_FLAG,
-          in_C_FLAG_IN, in_Z_FLAG_IN
+          in_C_FLAG_IN, in_Z_FLAG_IN,
+          in_I_FLAG
             : STD_LOGIC;
 
    signal in_PC_MUX_SEL, in_SP_MUX_SEL, in_RF_WR_SEL,
-          in_SCR_ADR_SEL, in_C_FLAG_SEL, in_Z_FLAG_SEL
+          in_SCR_ADR_SEL
             : STD_LOGIC_VECTOR (1 downto 0);
 
    signal in_ALU_SEL : STD_LOGIC_VECTOR (3 downto 0);
@@ -233,13 +242,14 @@ REGISTER_FILE: RegisterFile port map (
 
 CONTROLUNIT: control_unit port map (
                         --CONTROL UNIT INPUTS
-                        C => in_C_FLAG,
-                        Z => in_Z_FLAG,
-                        INT => '0', --not used Lab 7
-                        RST => RST,
-                        OPCODE_HI_5 => instruction (17 downto 13),
-                        OPCODE_LO_2 => instruction (1 downto 0),
-                        CLK => CLK,
+                        C => in_C_FLAG,   --FROM C FLAG REG
+                        Z => in_Z_FLAG,   --FROM Z FLAG REF
+                        INT => in_I_FLAG, --FROM I FLAG REG/"ENABLE"
+                        INT_IN => INT_IN, --FROM EXTERNAL INTERRUPT (DEBOUNCED)
+                        RST => RST,       --FROM BOARD
+                        OPCODE_HI_5 => instruction (17 downto 13), --FROM PROM
+                        OPCODE_LO_2 => instruction (1 downto 0),   --FROM PROM
+                        CLK => CLK, --FROM BOARD
 
                         --CONTROL UNIT OUTPUTS
                         --OUTPUTS TO PROGRAM COUNTER
@@ -263,13 +273,14 @@ CONTROLUNIT: control_unit port map (
                         SCR_OE => in_SCR_OE,
                         SCR_ADDR_SEL => in_SCR_ADR_SEL,
                         --OUTPUTS TO C_FLAG REGISTER
-                        C_FLAG_SEL => in_C_FLAG_SEL,
+                        C_FLAG_SAVE => in_C_FLAG_SAVE,
+                        C_FLAG_REST => in_C_FLAG_RESTORE,
                         C_FLAG_LD => in_C_FLAG_LD,
                         C_FLAG_SET => in_C_FLAG_SET,
                         C_FLAG_CLR => in_C_FLAG_CLR,
                         --OUTPUTS TO Z_FLAG REGISTER
-                        Z_FLAG_SEL => in_Z_FLAG_SEL,
-                        Z_FLAG_LD => in_Z_FLAG_LD,
+                        Z_FLAG_SAVE => in_C_FLAG_SAVE,
+                        Z_FLAG_REST => in_C_FLAG_RESTORE,
                         Z_FLAG_SET => in_Z_FLAG_SET,
                         Z_FLAG_CLR => in_Z_FLAG_CLR,
                         --OUTPUTS TO INTERRUPT REGISTER
@@ -322,6 +333,8 @@ CREG: FlagReg port map (
            LD => in_C_FLAG_LD,         --FORM CONTROL UNIT
            SET => in_C_FLAG_SET,       --FROM CONTROL UNIT
            CLR => in_C_FLAG_CLR,       --FROM CONTROL UNIT
+           RESTORE => in_C_FLAG_RESTORE,
+           SAVE => in_C_FLAG_SAVE,
            CLK => CLK,                 --FROM BOARD
            --C FLAG REG OUTPUTS
            OUT_FLAG => in_C_FLAG       --TO ALU
@@ -333,9 +346,24 @@ ZREG: FlagReg port map (
            LD => in_Z_FLAG_LD,         --FORM CONTROL UNIT
            SET => in_Z_FLAG_SET,       --FROM CONTROL UNIT
            CLR => in_Z_FLAG_CLR,       --FROM CONTROL UNIT
+           RESTORE => in_Z_FLAG_RESTORE,
+           SAVE => in_Z_FLAG_SAVE,
            CLK => CLK,                 --FROM BOARD
-           --C FLAG REG OUTPUTS
+           --Z FLAG REG OUTPUTS
            OUT_FLAG => in_Z_FLAG       --TO ALU
+           );
+
+IFLAG: FlagReg port map (
+           --Interrupt FLAG REG INPUTS
+           IN_FLAG  => '0',            --TIED TO 0
+           LD => '0',                   --TIED TO 0
+           SET => in_I_FLAG_SET,       --FROM CONTROL UNIT
+           CLR => in_I_FLAG_CLR,       --FROM CONTROL UNIT
+           RESTORE => '0',              --TIED TO 0
+           SAVE => '0',                 --TIED TO 0
+           CLK => CLK,                 --FROM BOARD
+           --Interrupt FLAG REG OUTPUTS
+           OUT_FLAG => in_I_FLAG       --TO CONTROL UNIT
            );
 
    --GIVE PORT_ID VALUE FROM INSTRUCTION

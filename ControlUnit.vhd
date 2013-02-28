@@ -13,6 +13,7 @@ entity control_unit is
            C             : in   STD_LOGIC;
            Z             : in   STD_LOGIC;
            INT           : in   STD_LOGIC;
+           INT_IN        : in   STD_LOGIC;
            RST           : in   STD_LOGIC;
            --From the instruction register:
            OPCODE_HI_5   : in   STD_LOGIC_VECTOR (4 downto 0);
@@ -45,13 +46,15 @@ entity control_unit is
            SCR_ADDR_SEL  : out  STD_LOGIC_VECTOR (1 downto 0); --sp mux sel
 
            --C Flag
-           C_FLAG_SEL    : out  STD_LOGIC_VECTOR (1 downto 0);
+           C_FLAG_SAVE   : out  STD_LOGIC;
+           C_FLAG_REST   : out  STD_LOGIC;
            C_FLAG_LD     : out  STD_LOGIC;
            C_FLAG_SET    : out  STD_LOGIC;
            C_FLAG_CLR    : out  STD_LOGIC;
 
            --Z Flag
-           Z_FLAG_SEL    : out  STD_LOGIC_VECTOR (1 downto 0);
+           Z_FLAG_SAVE   : out  STD_LOGIC;
+           Z_FLAG_REST   : out  STD_LOGIC;
            Z_FLAG_LD     : out  STD_LOGIC; --Load Z
            Z_FLAG_SET    : out  STD_LOGIC; --Set Z
            Z_FLAG_CLR    : out  STD_LOGIC; --Clear Z
@@ -67,7 +70,7 @@ end control_unit;
 
 architecture Behavioral of control_unit is
 
-   type state_type is (ST_init, ST_fet, ST_exec);
+   type state_type is (ST_init, ST_fet, ST_exec, ST_inte);
    signal PS,NS : state_type;
    signal opcode: std_logic_vector (6 downto 0);
 
@@ -92,52 +95,68 @@ begin
    comb_p: process (opcode, PS, NS) begin
       case PS is
    -- STATE: the init cycle ------------------------------------
-   -- Initialize all control outputs to non-active states and reset the PC and SP to all zeros.
+   -- Initialize all control outputs to non-active states and
+   -- reset the PC and SP to all zeros.
       when ST_init =>
          NS <= ST_fet;
         RESET         <= '1';
-        PC_LD         <= '0';   PC_MUX_SEL <= "00";   PC_OE        <= '0';
-        SP_LD         <= '0';   SP_MUX_SEL <= "00";
-        RF_WR         <= '0';   RF_WR_SEL  <= "00";   RF_OE    <= '0';
-        ALU_MUX_SEL   <= '0';   ALU_SEL    <= "0000";
-        SCR_WR        <= '0';   SCR_OE     <= '0';    SCR_ADDR_SEL <= "00";
-        C_FLAG_SEL    <= "00";  C_FLAG_LD  <= '0';    C_FLAG_SET   <= '0';  C_FLAG_CLR <= '0';
-        Z_FLAG_SEL    <= "00";  Z_FLAG_LD  <= '0';    Z_FLAG_SET   <= '0';  Z_FLAG_CLR <= '0';
-        I_FLAG_SET    <= '0';   I_FLAG_CLR <= '0';
+        PC_LD         <= '0';   PC_MUX_SEL  <= "00"; PC_OE      <= '0';
+        SP_LD         <= '0';   SP_MUX_SEL  <= "00";
+        RF_WR         <= '0';   RF_WR_SEL   <= "00"; RF_OE      <= '0';
+        ALU_MUX_SEL   <= '0';   ALU_SEL     <= "0000";
+        SCR_WR        <= '0';   SCR_OE      <= '0';  SCR_ADDR_SEL <= "00";
+        C_FLAG_LD     <= '0';   C_FLAG_SET  <= '0';  C_FLAG_CLR <= '0';
+        Z_FLAG_LD     <= '0';   Z_FLAG_SET  <= '0';  Z_FLAG_CLR <= '0';
+        C_FLAG_SAVE   <= '0';   C_FLAG_REST <= '0';
+        Z_FLAG_SAVE   <= '0';   Z_FLAG_REST <= '0';
+        I_FLAG_SET    <= '0';   I_FLAG_CLR  <= '0';
         IO_OE  <= '0';
 
 
     -- STATE: the fetch cycle -----------------------------------
-    --Set all control outputs to the values needed for fetch
+    -- Set all control outputs to the values needed for fetch
       when ST_fet =>
+          NS <= ST_exec;
         RESET         <= '0';
-        PC_LD         <= '1';   PC_MUX_SEL <= "00";   PC_OE        <= '0';
-        SP_LD         <= '0';   SP_MUX_SEL <= "00";
-        RF_WR         <= '0';   RF_WR_SEL  <= "00";   RF_OE    <= '0';
-        ALU_MUX_SEL   <= '0';   ALU_SEL    <= "0000";
-        SCR_WR        <= '0';   SCR_OE     <= '0';    SCR_ADDR_SEL <= "00";
-        C_FLAG_SEL    <= "00";  C_FLAG_LD  <= '0';    C_FLAG_SET   <= '0';  C_FLAG_CLR <= '0';
-        Z_FLAG_SEL    <= "00";  Z_FLAG_LD  <= '0';    Z_FLAG_SET   <= '0';  Z_FLAG_CLR <= '0';
-        I_FLAG_SET    <= '0';   I_FLAG_CLR <= '0';
+        PC_LD         <= '1';   PC_MUX_SEL  <= "00"; PC_OE      <= '0';
+        SP_LD         <= '0';   SP_MUX_SEL  <= "00";
+        RF_WR         <= '0';   RF_WR_SEL   <= "00"; RF_OE      <= '0';
+        ALU_MUX_SEL   <= '0';   ALU_SEL     <= "0000";
+        SCR_WR        <= '0';   SCR_OE      <= '0';  SCR_ADDR_SEL <= "00";
+        C_FLAG_LD     <= '0';   C_FLAG_SET  <= '0';  C_FLAG_CLR <= '0';
+        Z_FLAG_LD     <= '0';   Z_FLAG_SET  <= '0';  Z_FLAG_CLR <= '0';
+        C_FLAG_SAVE   <= '0';   C_FLAG_REST <= '0';
+        Z_FLAG_SAVE   <= '0';   Z_FLAG_REST <= '0';
+        I_FLAG_SET    <= '0';   I_FLAG_CLR  <= '0';
         IO_OE  <= '0';
-        NS <= ST_exec;
 
     -- STATE: the execute cycle ---------------------------------
       when ST_exec =>
-        NS <= ST_fet;
+         -- WHEN INTERRUPTED DURING EXECUTE STATE, NEXT STATE IS INTERRUPT
+         -- ELSE THE NEXT STATE IS FETCH
+         if (INT = '1') then
+            if (INT_IN = '1') then
+               NS <= ST_inte;
+            end if;
+         else
+            NS <= ST_fet;
+         end if;
+--            NS <= ST_fet;
 
    -- Repeat the init block for all variables here, noting that any output values desired to be different
    -- from init values shown below will be assigned in the following case statements for each opcode.
-         RESET         <= '0';
-         PC_LD         <= '0';   PC_MUX_SEL <= "00";   PC_OE        <= '0';
-         SP_LD         <= '0';   SP_MUX_SEL <= "00";
-         RF_WR         <= '0';   RF_WR_SEL  <= "00";   RF_OE    <= '0';
-         ALU_MUX_SEL   <= '0';   ALU_SEL    <= "0000";
-         SCR_WR        <= '0';   SCR_OE     <= '0';    SCR_ADDR_SEL <= "00";
-         C_FLAG_SEL    <= "00";  C_FLAG_LD  <= '0';    C_FLAG_SET   <= '0';  C_FLAG_CLR <= '0';
-         Z_FLAG_SEL    <= "00";  Z_FLAG_LD  <= '0';    Z_FLAG_SET   <= '0';  Z_FLAG_CLR <= '0';
-         I_FLAG_SET    <= '0';   I_FLAG_CLR <= '0';
-         IO_OE  <= '0';
+        RESET         <= '0';
+        PC_LD         <= '0';   PC_MUX_SEL  <= "00"; PC_OE      <= '0';
+        SP_LD         <= '0';   SP_MUX_SEL  <= "00";
+        RF_WR         <= '0';   RF_WR_SEL   <= "00"; RF_OE      <= '0';
+        ALU_MUX_SEL   <= '0';   ALU_SEL     <= "0000";
+        SCR_WR        <= '0';   SCR_OE      <= '0';  SCR_ADDR_SEL <= "00";
+        C_FLAG_LD     <= '0';   C_FLAG_SET  <= '0';  C_FLAG_CLR <= '0';
+        Z_FLAG_LD     <= '0';   Z_FLAG_SET  <= '0';  Z_FLAG_CLR <= '0';
+        C_FLAG_SAVE   <= '0';   C_FLAG_REST <= '0';
+        Z_FLAG_SAVE   <= '0';   Z_FLAG_REST <= '0';
+        I_FLAG_SET    <= '0';   I_FLAG_CLR  <= '0';
+        IO_OE  <= '0';
 
          case opcode is
          -- ADD REG REG
@@ -311,6 +330,26 @@ begin
                   SP_MUX_SEL <= "10";
                   SCR_ADDR_SEL <= "01";
                   SCR_OE <= '1';
+         -- RETID
+               when "0110110" =>
+                  PC_MUX_SEL <= "10";
+                  PC_LD <= '1';
+                  SCR_OE <= '1';
+                  SCR_ADDR_SEL <= "01";
+                  SP_MUX_SEL <= "10";
+                  I_FLAG_CLR <= '1';
+                  Z_FLAG_REST <= '1';
+                  C_FLAG_REST <= '1';
+         -- RETIE
+               when "0110111" =>
+                  PC_MUX_SEL <= "10";
+                  PC_LD <= '1';
+                  SCR_OE <= '1';
+                  SCR_ADDR_SEL <= "01";
+                  SP_MUX_SEL <= "10";
+                  I_FLAG_SET <= '1';
+                  Z_FLAG_REST <= '1';
+                  C_FLAG_REST <= '1';
          -- ROL
                when "0100010" =>
                   RF_WR <= '1';
@@ -434,32 +473,66 @@ begin
                when others =>
                   -- repeat the init block here to avoid incompletely specified outputs and hence avoid
                   -- the problem of inadvertently created latches within the synthesized system.
-                  RESET         <= '0';
-                  PC_LD         <= '0';   PC_MUX_SEL <= "00";   PC_OE        <= '0';
-                  SP_LD         <= '0';   SP_MUX_SEL <= "00";
-                  RF_WR         <= '0';   RF_WR_SEL  <= "00";   RF_OE    <= '0';
-                  ALU_MUX_SEL   <= '0';   ALU_SEL    <= "0000";
-                  SCR_WR        <= '0';   SCR_OE     <= '0';    SCR_ADDR_SEL <= "00";
-                  C_FLAG_SEL    <= "00";  C_FLAG_LD  <= '0';    C_FLAG_SET   <= '0';  C_FLAG_CLR <= '0';
-                  Z_FLAG_SEL    <= "00";  Z_FLAG_LD  <= '0';    Z_FLAG_SET   <= '0';  Z_FLAG_CLR <= '0';
-                  I_FLAG_SET    <= '0';   I_FLAG_CLR <= '0';
-                  IO_OE  <= '0';
+                 RESET         <= '0';
+                 PC_LD         <= '0';   PC_MUX_SEL  <= "00"; PC_OE      <= '0';
+                 SP_LD         <= '0';   SP_MUX_SEL  <= "00";
+                 RF_WR         <= '0';   RF_WR_SEL   <= "00"; RF_OE      <= '0';
+                 ALU_MUX_SEL   <= '0';   ALU_SEL     <= "0000";
+                 SCR_WR        <= '0';   SCR_OE      <= '0';  SCR_ADDR_SEL <= "00";
+                 C_FLAG_LD     <= '0';   C_FLAG_SET  <= '0';  C_FLAG_CLR <= '0';
+                 Z_FLAG_LD     <= '0';   Z_FLAG_SET  <= '0';  Z_FLAG_CLR <= '0';
+                 C_FLAG_SAVE   <= '0';   C_FLAG_REST <= '0';
+                 Z_FLAG_SAVE   <= '0';   Z_FLAG_REST <= '0';
+                 I_FLAG_SET    <= '0';   I_FLAG_CLR  <= '0';
+                 IO_OE  <= '0';
 
              end case;
-          when others =>
+
+    -- STATE: the interrupt cycle -------------------------------
+      when ST_inte =>
+         NS <= ST_fet;
+         PC_LD <= '1';
+         PC_MUX_SEL <= "11";
+         PC_OE <= '1';
+         SP_MUX_SEL <= "01";
+         SCR_WR <= '1';
+         SCR_ADDR_SEL <= "10";
+         Z_FLAG_SAVE <= '1';
+         C_FLAG_SAVE <= '1';
+         I_FLAG_CLR <= '1';
+         -- LATCH PREVENTION ASSIGN ALL OTHER SIGNALS
+           RESET         <= '0';
+           SP_LD         <= '0';
+           RF_WR         <= '0';   RF_WR_SEL   <= "00"; RF_OE      <= '0';
+           ALU_MUX_SEL   <= '0';   ALU_SEL     <= "0000";
+           SCR_OE        <= '0';
+           C_FLAG_LD     <= '0';   C_FLAG_SET  <= '0';  C_FLAG_CLR <= '0';
+           Z_FLAG_LD     <= '0';   Z_FLAG_SET  <= '0';  Z_FLAG_CLR <= '0';
+           C_FLAG_REST   <= '0';
+           Z_FLAG_REST   <= '0';
+           I_FLAG_SET    <= '0';
+           IO_OE         <= '0';
+
+
+    -- STATE: other states for sim ------------------------------
+      when others =>
             NS <= ST_fet;
             -- repeat the init block here to avoid incompletely specified outputs and hence avoid
             -- the problem of inadvertently created latches within the synthesized system.
-                  RESET         <= '0';
-                  PC_LD         <= '0';   PC_MUX_SEL <= "00";   PC_OE        <= '0';
-                  SP_LD         <= '0';   SP_MUX_SEL <= "00";
-                  RF_WR         <= '0';   RF_WR_SEL  <= "00";   RF_OE    <= '0';
-                  ALU_MUX_SEL   <= '0';   ALU_SEL    <= "0000";
-                  SCR_WR        <= '0';   SCR_OE     <= '0';    SCR_ADDR_SEL <= "00";
-                  C_FLAG_LD  <= '0';      C_FLAG_SET   <= '0';  C_FLAG_CLR <= '0';
-                  Z_FLAG_LD  <= '0';      Z_FLAG_SET   <= '0';  Z_FLAG_CLR <= '0';
-                  I_FLAG_SET    <= '0';   I_FLAG_CLR <= '0';
-                  IO_OE  <= '0';
+                 RESET         <= '0';
+                 PC_LD         <= '0';   PC_MUX_SEL  <= "00"; PC_OE      <= '0';
+                 SP_LD         <= '0';   SP_MUX_SEL  <= "00";
+                 RF_WR         <= '0';   RF_WR_SEL   <= "00"; RF_OE      <= '0';
+                 ALU_MUX_SEL   <= '0';   ALU_SEL     <= "0000";
+                 SCR_WR        <= '0';   SCR_OE      <= '0';  SCR_ADDR_SEL <= "00";
+                 C_FLAG_LD     <= '0';   C_FLAG_SET  <= '0';  C_FLAG_CLR <= '0';
+                 Z_FLAG_LD     <= '0';   Z_FLAG_SET  <= '0';  Z_FLAG_CLR <= '0';
+                 C_FLAG_SAVE   <= '0';   C_FLAG_REST <= '0';
+                 Z_FLAG_SAVE   <= '0';   Z_FLAG_REST <= '0';
+                 I_FLAG_SET    <= '0';   I_FLAG_CLR  <= '0';
+                 IO_OE  <= '0';
+
+
        end case;
    end process comb_p;
 end Behavioral;
