@@ -137,11 +137,12 @@ begin
          if (INT = '1') then
             if (INT_IN = '1') then
                NS <= ST_inte;
+            else
+               NS <= ST_fet;
             end if;
          else
             NS <= ST_fet;
          end if;
---            NS <= ST_fet;
 
    -- Repeat the init block for all variables here, noting that any output values desired to be different
    -- from init values shown below will be assigned in the following case statements for each opcode.
