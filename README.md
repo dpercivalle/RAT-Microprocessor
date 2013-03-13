@@ -10,14 +10,15 @@ This implementation of the RAT microprocessor was accomplished in the Winter qua
 The RAT Microprocessor implements a Harvard Architecture and a hardware stack pointer.
 
 This design of the RAT microprocessor was accomplished using a systematic approach to design the modules in an order that provided the shortest path to testing.  That is, the components were designed in the following order:
-  1 - Program Counter
-  2 - Register File
-  4 - Scratch Pad
-  5 - ALU
-  6 - Control Unit
-  (at this point, minimal testing of the design could be accomplished)
-  7 - Stack Pointer
-  8 - Implementation of interrupts, altering control unit as necessary
+  
+        1 - Program Counter  
+        2 - Register File  
+        4 - Scratch Pad  
+        5 - ALU  
+        6 - Control Unit  
+        (at this point, minimal testing of the design could be accomplished)  
+        7 - Stack Pointer  
+        8 - Implementation of interrupts, altering control unit as necessary  
 
 The VHDL sources provided in this repository are sufficient enough to drop the RAT_wrapper component in the top-level of a design requiring the use of the RAT microprocessor.
 
