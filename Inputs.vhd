@@ -25,6 +25,7 @@ entity inputs is
     Port ( input_port : out   STD_LOGIC_VECTOR (7 downto 0);  --the input corresponding to the port_id
            switches   : in    STD_LOGIC_VECTOR (7 downto 0);  --the current value of the switches on the Nexsys board
            pixelData  : in    STD_LOGIC_VECTOR (7 downto 0);  --value at pixel location from frame buffer
+           ps2keycode : in    STD_LOGIC_VECTOR (7 downto 0);  --key code form keyboard
            port_id    : in    STD_LOGIC_VECTOR (7 downto 0)); --the currently active port_id
 end inputs;
 
@@ -36,15 +37,17 @@ architecture Behavioral of inputs is
 -- Once you do that, remove this comment.
 CONSTANT SWITCHES_ID : STD_LOGIC_VECTOR (7 downto 0) := X"20";
 CONSTANT VGA_READ_ID : STD_LOGIC_VECTOR (7 downto 0) := X"30";
+CONSTANT PS2_KEYCODE : STD_LOGIC_VECTOR (7 downto 0) := X"60";
 
 begin
--- Mux for selecting what input to read -----------------------------------
+-- Mux for selecting what input to read ---------------------------------------
   process(port_id, switches, pixelData)
     begin
       case (port_id) is
         when SWITCHES_ID => input_port <= switches;
         when VGA_READ_ID => input_port <= pixelData;
-        when others      => input_port <= x"00";
+        when PS2_KEYCODE => input_port <= ps2keycode;
+        when others => null;
       end case;
   end process;
 -------------------------------------------------------------------------------

@@ -24,8 +24,10 @@ entity RAT_wrapper is
            blue      : out   STD_LOGIC_VECTOR (1 downto 0);
            horiz_s   : out   STD_LOGIC;
            vert_s    : out   STD_LOGIC;
+           PS2_CLK   : inout STD_LOGIC;
+	        PS2_DATA  : inout STD_LOGIC;
            switches  : in    STD_LOGIC_VECTOR (7 downto 0);
-           interrupt : in    STD_LOGIC;
+--            interrupt : in    STD_LOGIC;
            rst       : in    STD_LOGIC;
            clk       : in    STD_LOGIC);
 end RAT_wrapper;
@@ -44,15 +46,16 @@ component RAT_CPU
 end component RAT_CPU;
 
 component inputs is
-    Port ( input_port : out   STD_LOGIC_VECTOR (7 downto 0);
-           switches   : in    STD_LOGIC_VECTOR (7 downto 0);
-           pixelData  : in    STD_LOGIC_VECTOR (7 downto 0);
-           port_id    : in    STD_LOGIC_VECTOR (7 downto 0));
+    Port ( input_port : out   STD_LOGIC_VECTOR (7 downto 0);  --the input corresponding to the port_id
+           switches   : in    STD_LOGIC_VECTOR (7 downto 0);  --the current value of the switches on the Nexsys board
+           pixelData  : in    STD_LOGIC_VECTOR (7 downto 0);  --value at pixel location from frame buffer
+           ps2keycode : in    STD_LOGIC_VECTOR (7 downto 0);  --key code form keyboard
+           port_id    : in    STD_LOGIC_VECTOR (7 downto 0)); --the currently active port_id
 end component;
 
 component outputs is
     Port ( leds         : out   STD_LOGIC_VECTOR (7 downto 0);
-           sseg         : out   STD_LOGIC_VECTOR (7 downto 0);
+           SSEG         : out   STD_LOGIC_VECTOR (7 downto 0);
            vga_wa       : out   STD_LOGIC_VECTOR (10 downto 0);
            vga_wd       : out   STD_LOGIC_VECTOR (7 downto 0);
            vga_we       : out   STD_LOGIC;
@@ -82,6 +85,18 @@ component vgaDriverBuffer is
           VS : out std_logic);
 end component;
 
+component ps2_rxtx is
+   port (
+      clk, reset: in std_logic;
+      wr_ps2: in std_logic;
+      din: in std_logic_vector(7 downto 0);
+      dout: out std_logic_vector(7 downto 0);
+      rx_done_tick: out  std_logic;
+      tx_done_tick: out std_logic;
+      ps2d, ps2c: inout std_logic
+   );
+end component;
+
 component sseg_dec is
     Port (      ALU_VAL : in std_logic_vector(7 downto 0);
 					    SIGN : in std_logic;
@@ -105,6 +120,9 @@ signal in_pixelData, in_vga_wd : std_logic_vector (7 downto 0);
 signal in_vga_wa : std_logic_vector (10 downto 0);
 signal in_vga_we : std_logic;
 -------------------------------------------------------------------------------
+-- Signals for connecting Keyboard to RAT design ------------------------------
+signal ps2KeyCode : std_logic_vector (7 downto 0);
+-------------------------------------------------------------------------------
 begin
 -- Instantiate RAT_CPU --------------------------------------------------------
 CPU: RAT_CPU
@@ -121,20 +139,14 @@ INPUT: inputs
     port map(input_port => input_port,
              switches   => switches,
              pixelData  => in_pixelData,
+             ps2keycode => ps2KeyCode,
              port_id    => port_id);
 
--- Debouncer Interrupt --------------------------------------------------------
-DEBOUNCE: Debouncer
-   port map (
-        RST => rst,
-        CLK => clk,
-        INT_IN => interrupt,
-        INT_DEBOUNCED => in_int);
 
 -- Instantiate Outputs --------------------------------------------------------
 OUTPUT: outputs
     port map(leds        => leds,
-             sseg        => display,
+             SSEG        => display,
              vga_wa      => in_vga_wa,
              vga_wd      => in_vga_wd,
              vga_we      => in_vga_we,
@@ -155,6 +167,17 @@ VGA: vgaDriverBuffer
              Bout => blue,
              HS => horiz_s,
              VS => vert_s);
+
+-- Keyboard Driver ------------------------------------------------------------
+KEY: ps2_rxtx
+   port map( clk => clk,
+          reset => rst,
+          wr_ps2 => '0',
+          din => x"00",
+          dout => ps2keycode,
+          rx_done_tick => in_int,
+          ps2d => PS2_DATA,
+          ps2c => PS2_CLK);
 
 -- SSEG Decorder --------------------------------------------------------------
 DECODER: sseg_dec

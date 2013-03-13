@@ -1,0 +1,35 @@
+Release 14.4 - xst P.49d (nt64)
+Copyright (c) 1995-2012 Xilinx, Inc.  All rights reserved.
+--> Parameter TMPDIR set to Z:/Documents/School/Sophmore Year/Second Quarter/CPE 233/Lab 9 - Interrupts/RAT_CPU9/xst/projnav.tmp
+
+
+Total REAL time to Xst completion: 1.00 secs
+Total CPU time to Xst completion: 0.84 secs
+ 
+--> Parameter xsthdpdir set to Z:/Documents/School/Sophmore Year/Second Quarter/CPE 233/Lab 9 - Interrupts/RAT_CPU9/xst
+
+
+Total REAL time to Xst completion: 1.00 secs
+Total CPU time to Xst completion: 0.84 secs
+ 
+--> WARNING:Xst:3164 - Option "-debug" found multiple times in the command line. Only the first occurence is considered.
+
+=========================================================================
+*                          HDL Compilation                              *
+=========================================================================
+Compiling vhdl file "//psf/home/Documents/School/Sophmore Year/Second Quarter/CPE 233/Lab 9 - Interrupts/RAT_CPU9/Outputs.vhd" in Library work.
+Entity <outputs> compiled.
+Entity <outputs> (Architecture <behavioral>) compiled.
+
+
+Total REAL time to Xst completion: 1.00 secs
+Total CPU time to Xst completion: 1.03 secs
+ 
+--> 
+
+Total memory usage is 206248 kilobytes
+
+Number of errors   :    0 (   0 filtered)
+Number of warnings :    1 (   0 filtered)
+Number of infos    :    0 (   0 filtered)
+

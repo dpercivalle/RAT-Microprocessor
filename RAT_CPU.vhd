@@ -281,6 +281,7 @@ CONTROLUNIT: control_unit port map (
                         --OUTPUTS TO Z_FLAG REGISTER
                         Z_FLAG_SAVE => in_C_FLAG_SAVE,
                         Z_FLAG_REST => in_C_FLAG_RESTORE,
+                        Z_FLAG_LD =>in_Z_FLAG_LD,
                         Z_FLAG_SET => in_Z_FLAG_SET,
                         Z_FLAG_CLR => in_Z_FLAG_CLR,
                         --OUTPUTS TO INTERRUPT REGISTER
